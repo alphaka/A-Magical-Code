@@ -570,11 +570,13 @@ def bin_to_cards(msg_bin):
     m = digit
 
     min_cards = math.inf
-    for i in range(1, 53):
+    for i in range(1, 31): #53
         fact = math.factorial(i) - 1
         if digit < fact:
             min_cards = i
             break
+    if min_cards == math.inf:
+        return 0
     #print(min_cards)
     permutations = []
     elements = []
@@ -713,48 +715,67 @@ class Agent:
         """
         FYI: use 'encode_msg_bin' to compress a message to binary
         """
-        ms = set(message)
-        if ms.issubset(ASCII_Frequencies.G1_lower_num_punc.keys()):
-            encoding = LOWERCASE_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["LOWERCASE_HUFFMAN"]
-        elif ms.issubset(ASCII_Frequencies.G2_airport.keys()):
-            encoding = AIRPORT_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["AIRPORT_HUFFMAN"]
-        elif ms.issubset(ASCII_Frequencies.G3_password.keys()):
-            encoding = PASSPORT_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["PASSPORT_HUFFMAN"]
-        elif ms.issubset(ASCII_Frequencies.G4_location.keys()):
-            encoding = LOCATION_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["LOCATION_HUFFMAN"]
-        elif ms.issubset(ASCII_Frequencies.G5_addresses.keys()):
-            encoding = ADDRESS_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["ADDRESS_HUFFMAN"]
+        truncated = False
+
+        while True:
+
+            ms = set(message)
+
+            if ms.issubset(ASCII_Frequencies.G1_lower_num_punc.keys()):
+                encoding = LOWERCASE_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["LOWERCASE_HUFFMAN"]
+            elif ms.issubset(ASCII_Frequencies.G2_airport.keys()):
+                encoding = AIRPORT_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["AIRPORT_HUFFMAN"]
+            elif ms.issubset(ASCII_Frequencies.G3_password.keys()):
+                encoding = PASSPORT_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["PASSPORT_HUFFMAN"]
+            elif ms.issubset(ASCII_Frequencies.G4_location.keys()):
+                encoding = LOCATION_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["LOCATION_HUFFMAN"]
+            elif ms.issubset(ASCII_Frequencies.G5_addresses.keys()):
+                encoding = ADDRESS_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["ADDRESS_HUFFMAN"]
         # elif ms.issubset(ASCII_Frequencies.letter_freq_with_space.keys()):
         #     encoding = LETTERS_HUFFMAN
         #     scheme_id = self.encoding_to_scheme_id["LETTERS_HUFFMAN"]
         # elif ms.issubset(ASCII_Frequencies.num_freq.keys()):
         #     encoding = NUMBER_HUFFMAN
         #     scheme_id = self.encoding_to_scheme_id["NUMBER_HUFFMAN"]
-        else: # unlock for the time being
-            encoding = PRINTTABLE_HUFFMAN
-            scheme_id = self.encoding_to_scheme_id["PRINTTABLE_HUFFMAN"]
+            else: # unlock for the time being
+                encoding = PRINTTABLE_HUFFMAN
+                scheme_id = self.encoding_to_scheme_id["PRINTTABLE_HUFFMAN"]
         
-        msg_huffman_binary = encode_msg_bin(message, encoding)
+            msg_huffman_binary = encode_msg_bin(message, encoding)
        
         #print("encoded scheme id is ", scheme_id)
         
         
         # Calculate checksum before prepending the leading 1 bit
         # assert(len(self.compute_crc16_checksum(msg_huffman_binary)) == 16)
-        msg_huffman_binary += self.compute_pearson8_checksum(msg_huffman_binary)
+            msg_huffman_binary += self.compute_pearson8_checksum(msg_huffman_binary)
 
-        # Appending 3-bit identifier for encoding scheme
-        msg_huffman_binary += scheme_id
+         # Appending 3-bit identifier for encoding scheme
+            msg_huffman_binary += scheme_id
+
+            if truncated:
+                msg_huffman_binary += str(1)
+            else:
+                msg_huffman_binary += str(0)
+
         
-        msg_huffman_binary = "1" + msg_huffman_binary
+            msg_huffman_binary = "1" + msg_huffman_binary
+
         
-        cards = bin_to_cards(msg_huffman_binary)
-        
+            cards = bin_to_cards(msg_huffman_binary)
+            if cards != 0:
+                break
+
+            else:
+                truncated = True
+                message = message[0:-1]
+
+
         return cards
 
 
@@ -773,13 +794,26 @@ class Agent:
                     msg_cards.append(c)
             bin_raw = cards_to_bin(msg_cards)
             bin_raw = bin_raw[1:] # remove leading 1
-            bin_message, tail = bin_raw[:-11], bin_raw[-11:]
-            checksum, scheme_id = tail[:-3], tail[-3:]
+            bin_message, tail = bin_raw[:-12], bin_raw[-12:]
+            checksum, scheme_id, trunc = tail[:-4], tail[-4:-1], tail[-1:]
+
+            #print(tail)
+           # print(scheme_id)
+
+            truncated = False
+            if trunc == '1':
+                truncated = True
+            elif trunc == '0':
+                truncated = False
 
             if scheme_id in self.scheme_id_to_encoding and checksum == self.compute_pearson8_checksum(bin_message):
                #print("scheme_id ", scheme_id)
                decoded_message = decode_bin_msg(bin_message, self.scheme_id_to_encoding[scheme_id])
-               return decoded_message
+
+               if truncated:
+                   return "PARTIAL: " + decoded_message
+               else:
+                return decoded_message
         return "NULL"
 
 
