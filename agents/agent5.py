@@ -1,6 +1,5 @@
 import math
 import random
-import enchant
 
 
 class Vocab:
@@ -586,7 +585,6 @@ class Agent:
         self.max_perm_len = 30
         self.pearson8_table = list(range(0, 256))
         random.shuffle(self.pearson8_table)
-        self.english_dict = enchant.Dict("en_US")
         self.scheme_id_to_encoding = { "000" : LOWERCASE_HUFFMAN,
                                         "001" : AIRPORT_HUFFMAN,
                                         "010" : PASSPORT_HUFFMAN,
@@ -612,15 +610,6 @@ class Agent:
                     for word in words:
                         self.g6_vocab_list.append(word)
                     line = f.readline()
-        # Group 7
-        with open('messages/agent7/30k.txt', 'r') as f:
-            self.g7_vocab_list = []
-            line = f.readline()
-            while line:
-                line = line.strip()
-                if self.english_dict.check(line):
-                    self.g7_vocab_list.append(line)
-                line = f.readline()
 
         # Group 8
         self.g8_vocab_list = []
@@ -630,13 +619,20 @@ class Agent:
             self.g8_vocab_list.extend(f.read().splitlines())
         
         self.g6_vocab_set = set(self.g6_vocab_list)
-        self.g7_vocab_set = set(self.g7_vocab_list)
+        #self.g7_vocab_set = set(self.g7_vocab_list)
         self.g8_vocab_set = set(self.g8_vocab_list)
         
         
         self.g6_vocab_list = list(self.g6_vocab_set)
-        self.g7_vocab_list = list(self.g7_vocab_set)
+        #self.g7_vocab_list = list(self.g7_vocab_set)
         self.g8_vocab_list = list(self.g8_vocab_set)
+        # with open('messages/agent7/vocab.txt', 'w') as f:
+        #     for x in self.g7_vocab_list:
+        #         f.write(x + '\n')
+        with open('messages/agent7/vocab.txt', 'r') as f:
+            self.g7_vocab_list = f.read().rstrip('\n').splitlines()
+
+        self.g7_vocab_set = set(self.g7_vocab_list)
         self.dict_encoding = DictEncoding(self.g6_vocab_list, self.g7_vocab_list, self.g8_vocab_list)
         
 
